@@ -1,6 +1,7 @@
 import cv2
 from numpy import *
 from matplotlib import pyplot as plt
+from networktables import NetworkTables
 import sys
 import math
 
@@ -62,7 +63,7 @@ def finddist(left_cam_x,right_cam_x):
 
         x_res = 1280.0;         #horizontal resolution of images
         fov_x_half = 59.6/2;    #half the horizontal field of view (in degrees) of the cameras
-        sep = 10.1875;          #camera seperation in inches
+        sep = 10;          #camera seperation in inches
 
         l_0 = x_res/2;
         theta_0 = fov_x_half*math.pi/180;
@@ -84,6 +85,7 @@ def finddist(left_cam_x,right_cam_x):
 
 
 numlasers = 3;
+cam_sep = 10;
 
 #Load images and find the laser dot pixel coordinates
 pix = findpix(sys.argv[1]);
@@ -107,12 +109,19 @@ dist1 = finddist(xleft[orderx1[0]],xr[orderxr[0]]);
 dist2 = finddist(xleft[orderx1[1]],xr[orderxr[1]]);
 dist3 = finddist(xleft[orderx1[2]],xr[orderxr[2]]);
 
-#Write distance results to a text file. Set of 3 at a time, with the leftmost laser dot first, then middle, then right.
-f = open('results.txt','a');
-f.write(str(dist3));
-f.write('\n');
-f.write(str(dist2));
-f.write('\n');
-f.write(str(dist1));
-f.write('\n');
-f.close();
+#Get angle from object
+opposite = dist1 - dist3;
+theta = math.degrees(math.atan(opposite / cam_sep));
+
+#Average distances
+avg_dist = (dist1 + dist2 + dist3)/3
+
+#Setup network tables
+ip = sys.argv[3];
+NetworkTables.initialize(server=ip);
+sd = NetworkTables.getTable("SmartDashboard");
+
+#Pass values to SmartDashboard
+sd.putNumber('visionDist', avg_dist);
+sd.putNumber('visionAngle', theta);
+
