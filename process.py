@@ -23,10 +23,7 @@ def findmax(lst,n):
     return ind
 
 #Input image of red laser dot. Using Contours, determine the (x,y) pixel coordinates of each laser dot in the image.
-def findpix(filename):
-
-    im = cv2.imread(filename);
-
+def findpix(im):
     ret,bim = cv2.threshold(im[:,:,2],240,255,cv2.THRESH_BINARY);   #threshold on red data of image
 
     #plt.imshow(bim); plt.show();
@@ -63,7 +60,6 @@ def finddist(left_cam_x,right_cam_x):
 
         x_res = 1280.0;         #horizontal resolution of images
         fov_x_half = 59.6/2;    #half the horizontal field of view (in degrees) of the cameras
-        sep = 10;          #camera seperation in inches
 
         l_0 = x_res/2;
         theta_0 = fov_x_half*math.pi/180;
@@ -75,25 +71,33 @@ def finddist(left_cam_x,right_cam_x):
         theta_2 = math.pi/2 - math.atan(math.tan(theta_0)*(l_2/l_0));
 
         #Find the side lengths of the triangle
-        hyp_1 = sep/math.sin(math.pi - theta_1 - theta_2) * math.sin(theta_2);      
-        hyp_2 = sep/math.sin(math.pi - theta_1 - theta_2) * math.sin(theta_1);
+        hyp_1 = cam_sep/math.sin(math.pi - theta_1 - theta_2) * math.sin(theta_2);      
+        hyp_2 = cam_sep/math.sin(math.pi - theta_1 - theta_2) * math.sin(theta_1);
 
         #Find median of the triangle
         dist = math.sqrt((2*hyp_1**2 + 2*hyp_2**2 - sep**2)/4);     
 
         return dist
 
-
+#Constants
 numlasers = 3;
 cam_sep = 10;
+left_cam_index = 0;
+right_cam_index = 1;
+
+#Capture images
+left_cam = cv2.VideoCapture(left_cam_index);
+l, left_img = cv2.left_cam.read();
+right_cam = cv2.VideoCapture(right_cam_index);
+r, right_img = cv2.right_cam.read();
 
 #Load images and find the laser dot pixel coordinates
-pix = findpix(sys.argv[1]);
+pix = findpix(left_img);
 left_cam_x1 = pix[0][0]; left_cam_y1 = pix[0][1];
 left_cam_x2 = pix[1][0]; left_cam_y2 = pix[1][1];
 left_cam_x3 = pix[2][0]; left_cam_y3 = pix[2][1];
 
-pix = findpix(sys.argv[2]);
+pix = findpix(right_img);
 right_cam_x1 = pix[0][0]; right_cam_y1 = pix[0][1];
 right_cam_x2 = pix[1][0]; right_cam_y2 = pix[1][1];
 right_cam_x3 = pix[2][0]; right_cam_y3 = pix[2][1];
@@ -114,14 +118,13 @@ opposite = dist1 - dist3;
 theta = math.degrees(math.atan(opposite / cam_sep));
 
 #Average distances
-avg_dist = (dist1 + dist2 + dist3)/3
+avg_dist = (dist1 + dist2 + dist3)/3;
 
 #Setup network tables
-ip = sys.argv[3];
+ip = sys.argv[1];
 NetworkTables.initialize(server=ip);
 sd = NetworkTables.getTable("SmartDashboard");
 
 #Pass values to SmartDashboard
 sd.putNumber('visionDist', avg_dist);
 sd.putNumber('visionAngle', theta);
-
